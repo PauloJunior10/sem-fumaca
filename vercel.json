@@ -7,8 +7,5 @@
         "distDir": "dist"
       }
     }
-  ],
-  "env": {
-    "GEMINI_API_KEY": "AIzaSyBOqqduEPMSQpEBGQ_I4XZ62TZQ_gi_TSY"
-  }
+  ]
 }
