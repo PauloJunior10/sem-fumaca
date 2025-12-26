@@ -19,6 +19,7 @@ export interface UserData {
   pricePerPack: number;
   cigarettesPerPack: number;
   unlockedBadges: string[]; // IDs of badges already celebrated
+  onboardingCompleted: boolean;
 }
 
 export interface DailyStat {

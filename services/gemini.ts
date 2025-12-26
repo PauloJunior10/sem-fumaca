@@ -1,29 +1,34 @@
 
-import { GoogleGenAI } from "@google/genai";
 
-export async function getHealthInsights(stats: any) {
+/**
+ * Busca insights de saúde do nosso próprio backend (função serverless),
+ * que por sua vez chama a API do Gemini de forma segura.
+ * @param stats - As estatísticas de fumo do usuário.
+ * @returns Uma string com o insight gerado.
+ */
+export async function getHealthInsights(stats: any): Promise<string> {
   try {
-    // Criar a instância dentro da função garante que usamos a chave de API mais recente
-    // e evita falhas se o objeto 'process' não estiver totalmente pronto no carregamento inicial.
-    const apiKey = typeof process !== 'undefined' ? process.env.API_KEY : '';
-    const ai = new GoogleGenAI({ apiKey: apiKey || '' });
-    
-    const prompt = `Analise os seguintes dados de um usuário tentando parar de fumar:
-    - Cigarros fumados hoje: ${stats.today || 0}
-    - Total no mês: ${stats.month || 0}
-    - Dinheiro economizado: R$ ${stats.moneySaved?.toFixed(2) || '0.00'}
-    - Vida recuperada: ${Math.floor(stats.lifeRegained / 60) || 0} horas
-    
-    Crie um insight curto (máximo 150 caracteres), motivador e baseado em evidências de saúde para incentivá-lo a continuar ou reduzir o consumo. Responda apenas com o texto do insight.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
+    const response = await fetch('/api/getInsights', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ stats }),
     });
 
-    return response.text || "Continue focado! Cada cigarro evitado é uma vitória para seus pulmões.";
+    if (!response.ok) {
+      // Se a resposta do nosso backend não for OK, lança um erro
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Falha ao buscar insights do servidor.');
+    }
+
+    const data = await response.json();
+    return data.insight || "Continue focado! Cada cigarro evitado é uma vitória para seus pulmões.";
+
   } catch (error) {
-    console.error("Erro ao obter insights do Gemini:", error);
+    console.error("Erro ao obter insights do nosso backend:", error);
+    // Retorna uma mensagem padrão em caso de falha de rede ou erro do servidor
     return "Mantenha o foco! Reduzir o consumo melhora sua circulação em poucas semanas.";
   }
 }
+

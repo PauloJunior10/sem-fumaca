@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Home, BarChart3, Trophy, Plus, RotateCcw, TrendingUp, Calendar, Target, Wallet, HeartPulse } from 'lucide-react';
+import { Home, BarChart3, Trophy, Plus, RotateCcw, TrendingUp, Calendar, Target, Wallet, HeartPulse, Leaf } from 'lucide-react';
 import Timer from './components/Timer';
 import HistoryChart from './components/HistoryChart';
 import StatCard from './components/StatCard';
@@ -8,6 +8,7 @@ import AIInsights from './components/AIInsights';
 import Achievements from './components/Achievements';
 import AchievementNotification from './components/AchievementNotification';
 import SplashScreen from './components/SplashScreen';
+import Onboarding from './components/Onboarding';
 import { UserData, CigaretteLog, Achievement } from './types';
 
 const STORAGE_KEY = 'sem_fumaca_data_v1';
@@ -25,7 +26,8 @@ const INITIAL_DATA: UserData = {
   dailyGoal: 10,
   pricePerPack: 12.00,
   cigarettesPerPack: 20,
-  unlockedBadges: []
+  unlockedBadges: [],
+  onboardingCompleted: false
 };
 
 type Tab = 'home' | 'stats' | 'achievements';
@@ -40,14 +42,19 @@ const App: React.FC = () => {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Splash Screen Timer
+  // Splash Screen Timer & Onboarding Check
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
+      // Show onboarding only if it has not been completed
+      if (!data.onboardingCompleted) {
+        setShowOnboarding(true);
+      }
     }, 2000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [data.onboardingCompleted]);
 
   // Persistence
   useEffect(() => {
@@ -56,6 +63,9 @@ const App: React.FC = () => {
 
   // Achievement Monitoring
   useEffect(() => {
+    // Don't run achievement checks during onboarding
+    if (showOnboarding) return;
+
     const checkAchievements = () => {
       const survivalTime = Date.now() - data.lastReset;
       const newlyUnlocked = ACHIEVEMENTS.find(
@@ -73,7 +83,7 @@ const App: React.FC = () => {
 
     const interval = setInterval(checkAchievements, 5000);
     return () => clearInterval(interval);
-  }, [data.lastReset, data.unlockedBadges]);
+  }, [data.lastReset, data.unlockedBadges, showOnboarding]);
 
   // Actions
   const handleAddCigarette = () => {
@@ -96,6 +106,16 @@ const App: React.FC = () => {
       unlockedBadges: []
     }));
     setIsResetConfirmOpen(false);
+  };
+
+  const handleOnboardingComplete = (dailyGoal: number, pricePerPack: number) => {
+    setData(prev => ({
+      ...prev,
+      dailyGoal,
+      pricePerPack,
+      onboardingCompleted: true,
+    }));
+    setShowOnboarding(false);
   };
 
   // Stats Logic
@@ -269,90 +289,100 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0F172A] pb-40 md:pb-12 max-w-2xl mx-auto px-5 pt-8 overflow-x-hidden">
       {showSplash && <SplashScreen />}
+      
+      {showOnboarding && <Onboarding onComplete={handleOnboardingComplete} />}
 
-      {newAchievement && (
-        <AchievementNotification 
-          achievement={newAchievement} 
-          onClose={() => setNewAchievement(null)} 
-        />
-      )}
+      {!showSplash && !showOnboarding && (
+        <>
+          {newAchievement && (
+            <AchievementNotification 
+              achievement={newAchievement} 
+              onClose={() => setNewAchievement(null)} 
+            />
+          )}
 
-      {/* Modern Professional Branding Header */}
-      <header className="flex justify-between items-start mb-8">
-        <div>
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-3xl font-thin tracking-tighter text-slate-300">sem</span>
-            <span className="text-3xl font-black tracking-tighter text-emerald-500">fumaça</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mb-1 ml-0.5"></span>
-          </div>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em]">
-              {activeTab === 'home' ? 'Painel de Sobrevivência' : activeTab === 'stats' ? 'Análise de Dados' : 'Conquistas'}
-            </p>
-          </div>
-        </div>
-        <button 
-          onClick={() => setIsResetConfirmOpen(true)}
-          className="p-3 rounded-2xl bg-[#1E293B] border border-slate-700 text-slate-400 hover:text-red-500 hover:border-red-500/30 transition-all active:scale-90"
-          title="Recaída (Resetar Tempo)"
-        >
-          <RotateCcw size={20} />
-        </button>
-      </header>
-
-      <main className={`${showSplash ? 'opacity-0' : 'opacity-100'} transition-opacity duration-1000`}>
-        {renderContent()}
-      </main>
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#1E293B] border-t border-slate-700/50 pb-8 pt-4 px-8 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
-        <div className="max-w-2xl mx-auto flex justify-between items-center">
-          <TabButton 
-            active={activeTab === 'home'} 
-            onClick={() => setActiveTab('home')} 
-            icon={<Home size={24} />} 
-            label="Home" 
-          />
-          <TabButton 
-            active={activeTab === 'stats'} 
-            onClick={() => setActiveTab('stats')} 
-            icon={<BarChart3 size={24} />} 
-            label="Stats" 
-          />
-          <TabButton 
-            active={activeTab === 'achievements'} 
-            onClick={() => setActiveTab('achievements')} 
-            icon={<Trophy size={24} />} 
-            label="Badges" 
-          />
-        </div>
-      </nav>
-
-      {isResetConfirmOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-[#1E293B] border border-slate-700 rounded-[2rem] p-8 max-sm w-full shadow-2xl">
-            <div className="bg-red-500/20 w-16 h-16 rounded-3xl flex items-center justify-center text-red-500 mb-6 mx-auto">
-              <RotateCcw size={32} strokeWidth={3} />
+          {/* Modern Professional Branding Header */}
+          <header className="flex justify-between items-start mb-8">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
+                  <Leaf className="text-emerald-500" size={24} />
+                </div>
+                <div>
+                  <span className="text-2xl font-thin tracking-tighter text-slate-300">sem</span>
+                  <span className="text-2xl font-black tracking-tighter text-emerald-500">fumaça</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-2">
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.2em] ml-1">
+                  {activeTab === 'home' ? 'Painel de Sobrevivência' : activeTab === 'stats' ? 'Análise de Dados' : 'Conquistas'}
+                </p>
+              </div>
             </div>
-            <h3 className="text-2xl font-black text-center mb-3">Recaída?</h3>
-            <p className="text-slate-400 text-center mb-8 text-sm leading-relaxed">
-              O cronômetro e suas conquistas serão zerados. <br/>Não desanime, <strong>cada tentativa é um aprendizado!</strong>
-            </p>
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={handleResetSurvival}
-                className="w-full py-4 rounded-2xl bg-[#EF4444] text-white font-black uppercase tracking-widest text-xs hover:bg-red-600 transition-colors active:scale-95"
-              >
-                Confirmar Reset
-              </button>
-              <button 
-                onClick={() => setIsResetConfirmOpen(false)}
-                className="w-full py-4 rounded-2xl bg-slate-800 border border-slate-700 text-slate-300 font-bold uppercase tracking-widest text-xs active:scale-95"
-              >
-                Voltar
-              </button>
+            <button 
+              onClick={() => setIsResetConfirmOpen(true)}
+              className="p-3 rounded-2xl bg-[#1E293B] border border-slate-700 text-slate-400 hover:text-red-500 hover:border-red-500/30 transition-all active:scale-90"
+              title="Recaída (Resetar Tempo)"
+            >
+              <RotateCcw size={20} />
+            </button>
+          </header>
+
+          <main>
+            {renderContent()}
+          </main>
+
+          <nav className="fixed bottom-0 left-0 right-0 bg-[#1E293B] border-t border-slate-700/50 pb-8 pt-4 px-8 z-50 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
+            <div className="max-w-2xl mx-auto flex justify-between items-center">
+              <TabButton 
+                active={activeTab === 'home'} 
+                onClick={() => setActiveTab('home')} 
+                icon={<Home size={24} />} 
+                label="Home" 
+              />
+              <TabButton 
+                active={activeTab === 'stats'} 
+                onClick={() => setActiveTab('stats')} 
+                icon={<BarChart3 size={24} />} 
+                label="Stats" 
+              />
+              <TabButton 
+                active={activeTab === 'achievements'} 
+                onClick={() => setActiveTab('achievements')} 
+                icon={<Trophy size={24} />} 
+                label="Badges" 
+              />
             </div>
-          </div>
-        </div>
+          </nav>
+
+          {isResetConfirmOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl animate-in fade-in duration-300">
+              <div className="bg-[#1E293B] border border-slate-700 rounded-[2rem] p-8 max-sm w-full shadow-2xl">
+                <div className="bg-red-500/20 w-16 h-16 rounded-3xl flex items-center justify-center text-red-500 mb-6 mx-auto">
+                  <RotateCcw size={32} strokeWidth={3} />
+                </div>
+                <h3 className="text-2xl font-black text-center mb-3">Recaída?</h3>
+                <p className="text-slate-400 text-center mb-8 text-sm leading-relaxed">
+                  O cronômetro e suas conquistas serão zerados. <br/>Não desanime, <strong>cada tentativa é um aprendizado!</strong>
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={handleResetSurvival}
+                    className="w-full py-4 rounded-2xl bg-[#EF4444] text-white font-black uppercase tracking-widest text-xs hover:bg-red-600 transition-colors active:scale-95"
+                  >
+                    Confirmar Reset
+                  </button>
+                  <button 
+                    onClick={() => setIsResetConfirmOpen(false)}
+                    className="w-full py-4 rounded-2xl bg-slate-800 border border-slate-700 text-slate-300 font-bold uppercase tracking-widest text-xs active:scale-95"
+                  >
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
